@@ -16,13 +16,15 @@ from uuid import uuid4
 from flask import Blueprint, jsonify, request
 from reana_commons.config import WORKFLOW_TIME_FORMAT
 from reana_db.database import Session
-from reana_db.utils import build_workspace_path
-from reana_db.models import User, Workflow, RunStatus, WorkflowResource
-from reana_db.utils import _get_workflow_with_uuid_or_name, get_default_quota_resource
+from reana_db.models import RunStatus, User, UserWorkflow, Workflow, WorkflowResource
+from reana_db.utils import (
+    _get_workflow_with_uuid_or_name,
+    build_workspace_path,
+    get_default_quota_resource,
+)
 from sqlalchemy import and_, nullslast
 from webargs import fields
 from webargs.flaskparser import use_args, use_kwargs
-
 
 from reana_workflow_controller.config import DEFAULT_NAME_FOR_WORKFLOWS
 from reana_workflow_controller.errors import (
@@ -38,7 +40,6 @@ from reana_workflow_controller.rest.utils import (
     is_uuid_v4,
     use_paginate_args,
 )
-
 
 START = "start"
 STOP = "stop"
@@ -262,7 +263,10 @@ def get_workflows(args, paginate=None):  # noqa
             return jsonify({"message": "User {} does not exist".format(user_uuid)}), 404
 
         workflows = []
-        query = user.workflows
+
+        query = user.shared_workflows
+        # query = user.workflows
+
         if search:
             search = json.loads(search)
             search_val = search.get("name")[0]
@@ -276,6 +280,7 @@ def get_workflows(args, paginate=None):  # noqa
                 if is_uuid_v4(workflow_id_or_name)
                 else query.filter(Workflow.name == workflow_id_or_name)
             )
+
         column_sorted = Workflow.created.desc()
         if sort in ["disk-desc", "cpu-desc"]:
             resource_type = sort.split("-")[0]
